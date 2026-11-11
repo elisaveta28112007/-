@@ -1,0 +1,87 @@
+1. AdminPC
+sudo hostnamectl set-hostname AdminPC
+
+sudo nmcli connection add type ethernet ifname enp1s0 con-name AdminPC-Net ipv4.method manual ipv4.addresses 192.168.1.215/24 ipv4.gateway 192.168.1.214
+
+sudo nmcli connection up AdminPC-Net
+
+ip -br addr
+ip route
+
+ping -c 4 192.168.1.214
+
+
+2. Router
+sudo hostnamectl set-hostname Router
+
+sudo nmcli connection add type ethernet ifname enp1s0 con-name Int1 ipv4.method auto
+sudo nmcli connection up Int1
+
+sudo nmcli connection add type ethernet ifname enp2s0 con-name Int2 ipv4.method manual ipv4.addresses 192.168.1.214/24
+sudo nmcli connection up Int2
+
+sudo nmcli connection add type ethernet ifname enp3s0 con-name Int3 ipv4.method manual ipv4.addresses 172.16.100.1/24
+sudo nmcli connection up Int3
+
+sudo sysctl -w net.ipv4.ip_forward=1
+
+echo "net.ipv4.ip_forward=1" | sudo tee /etc/sysctl.d/99-ipforward.conf
+
+sudo sysctl --system
+
+ip -br addr
+ip route
+
+
+3. Server
+sudo hostnamectl set-hostname Server
+
+sudo nmcli connection add type ethernet ifname enp1s0 con-name ServerNet ipv4.method manual ipv4.addresses 172.16.100.100/24 ipv4.gateway 172.16.100.1
+
+sudo nmcli connection up ServerNet
+
+sudo apt-get update
+
+sudo apt-get install -y openssh-server
+
+sudo systemctl enable --now sshd
+
+sudo apt-get install -y docker-engine
+
+sudo systemctl enable --now docker
+
+sudo mkdir -p /opt/site
+
+sudo tee /opt/site/index.html > /dev/null <<'EOF'
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Hello</title>
+</head>
+<body>
+<h1>Добро пожаловать в «КИТ»!</h1>
+</body>
+</html>
+EOF
+
+sudo docker run -d --name web-nginx --restart unless-stopped -p 80:80 -v /opt/site:/usr/share/nginx/html:ro registry.altlinux.org/p11/nginx
+
+sudo docker ps
+
+curl http://127.0.0.1
+
+
+4. Проверка с AdminPC
+ping -c 4 192.168.1.214
+
+ping -c 4 172.16.100.1
+
+ping -c 4 172.16.100.100
+
+curl http://172.16.100.100
+
+
+5. Проверка в браузере
+На AdminPC открой:
+http://172.16.100.100
